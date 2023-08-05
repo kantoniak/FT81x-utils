@@ -167,7 +167,7 @@ def run():
     out_file.write("\n")
     out_file.write("};\n\n")
     out_file.write("// Write metrics in RAM at address aligned to 4 bytes.\n")
-    out_file.write("const uint8_t FONT_METRICS[] PROGMEM = {")
+    out_file.write("const uint8_t FONT_METRICS[] PROGMEM = {\n")
     out_file.write(" "*indent_spaces)
     out_file.write("// Character widths\n")
     out_file.write(render_byte_list(metrics_width_bytes, 8, indent_spaces))
