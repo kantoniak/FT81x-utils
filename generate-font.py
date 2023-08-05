@@ -161,6 +161,7 @@ def run():
 
 
   with open(output_filename, "w") as out_file:
+    render_uint32 = lambda val: render_byte_list(list(val.to_bytes(4, 'little')), 8, indent_spaces)
     out_file.write(f"const uint32_t FONT_BITMAP_BYTE_COUNT = {bitmap_byte_count};\n")
     out_file.write("const uint8_t FONT_BITMAP_BYTES[] PROGMEM = {\n")
     out_file.write(render_byte_list(bitmap_bytes, bitmap_byte_columns, indent_spaces))
@@ -174,15 +175,15 @@ def run():
     out_file.write("\n")
     out_file.write(" "*indent_spaces)
     out_file.write("// Values below are in Little Endian order\n")
-    out_file.write(render_byte_list(list(bitmap_layout_id.value.to_bytes(4, 'little')), 8, indent_spaces))
+    out_file.write(render_uint32(bitmap_layout_id.value))
     out_file.write(f" // L{bit_depth} format\n")
-    out_file.write(render_byte_list(list(bitmap_linestride.to_bytes(4, 'little')), 8, indent_spaces))
+    out_file.write(render_uint32(bitmap_linestride))
     out_file.write(f" // Linestride ({padded_image_width} * {bit_depth}bpp / 8)\n")
-    out_file.write(render_byte_list(list(padded_image_width.to_bytes(4, 'little')), 8, indent_spaces))
+    out_file.write(render_uint32(padded_image_width))
     out_file.write(" // Font width\n")
-    out_file.write(render_byte_list(list(glyph_height.to_bytes(4, 'little')), 8, indent_spaces))
+    out_file.write(render_uint32(glyph_height))
     out_file.write(" // Font height\n")
-    out_file.write(render_byte_list(list(int(0).to_bytes(4, 'little')), 8, indent_spaces))
+    out_file.write(render_uint32(0))
     out_file.write(" // Bitmap pointer in RAM\n")
     out_file.write("};\n")
 
