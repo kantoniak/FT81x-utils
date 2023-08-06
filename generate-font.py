@@ -1,12 +1,7 @@
-from enum import Enum
-from typing import Iterable, Tuple
 import math
+from utils import *
 
 from PIL import Image, ImageDraw, ImageFont
-
-
-class FT81xBitmapLayout(Enum):
-  L4 = 2
 
 
 def get_width_padded_to_bytes(width: int, bit_depth: int) -> int:
@@ -156,7 +151,7 @@ def run():
   # Built font metrics
   metrics_width_bytes = [0]*ord(' ')                             # Skipped characters
   metrics_width_bytes.extend([image_width]*(ord('~')+1-ord(' ')+1))  # Rendered characters
-  bitmap_layout_id = bit_depth_to_layout(bit_depth)
+  bitmap_layout_id = bit_depth_to_l_layout(bit_depth)
   bitmap_linestride = padded_image_width * bit_depth // 8
 
 
