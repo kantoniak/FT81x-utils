@@ -99,9 +99,6 @@ def run():
   glyph_width = image_width
   glyph_height = image_height - image_crop_top
 
-  convert_to_4bit = lambda x: (x * 15 + 135) >> 8
-  bit_depth_converter = convert_to_4bit
-
   # End of settings
 
 
@@ -138,7 +135,7 @@ def run():
       continue
 
     # Get output bytes
-    glyph_data = map(bit_depth_converter, image.getdata())
+    glyph_data = change_bit_depth(image.getdata(), bit_depth)
     (glyph_bytes, glyph_byte_count) = join_to_bytes(glyph_data, bit_depth)
     bitmap_bytes.extend(glyph_bytes)
     bitmap_byte_count += glyph_byte_count
