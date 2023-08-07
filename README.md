@@ -24,3 +24,5 @@ Converts OTF fonts to bytes for loading into `RAM_G` on the chip.
 1. Drop `font.otf` in the directory.
 2. Run `python3 generate-font.py`
 3. By default, the script generates preview of glyphs in `out.png` and outputs data to `progmem.hpp`.
+
+Tip: you can tweak font by rendering image by setting `preview_filename`, applying tweaks, and running script again with `image_file` set instead of `font_file`.

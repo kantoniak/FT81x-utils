@@ -1,4 +1,5 @@
 import math
+from typing import Iterable, Tuple
 from utils import *
 
 from PIL import Image, ImageDraw, ImageFont
@@ -30,48 +31,49 @@ def render_glyph(
     .crop((0, image_crop_top, padded_image_width, image_height))
 
 
-def join_to_bytes(data: Iterable[int], bit_depth: int) -> Tuple[Iterable[int], int]:
-  data_list = list(data)
-  data_length = len(data_list)
+def render_bitmap(
+    font: ImageFont.FreeTypeFont,
+    image_height: int,
+    image_crop_top: int,
+    padded_image_width: int,
+    bit_depth: int,
+    rendering_scale: int,
+    canvas_width: int,
+    canvas_height: int,
+    glyph_height: int,
+    font_x_adjust: float,
+    font_y_adjust: float) -> Tuple[Image.Image, Iterable[int], int]:
+  bitmap_bytes = list()
+  bitmap_byte_count = 0
 
-  if bit_depth == 8:
-    return (data_list, data_length)
-  
-  if bit_depth == 4:
-    if data_length % 2 == 1:
-      data_list.append(0)
-      data_length += 1
+  preview_image = None
+  glyph_count = ord('~') - ord(' ') + 1
+  preview_image = Image.new('L', size=(padded_image_width, glyph_height * glyph_count))
 
-    bytes = list()
-    i = 0
-    while i < data_length:
-      bytes.append(data_list[i] << 4 | data_list[i+1])
-      i += 2
-    
-    return (bytes, int(data_length/2))
-  
-  raise ValueError("Supported bit depths are 4 and 8")
+  for ascii_code in range(ord(' '), ord('~')+1):
+    glyph = chr(ascii_code)
 
+    # Build glyph
+    image = render_glyph(
+      glyph,
+      font,
+      image_height,
+      image_crop_top,
+      padded_image_width,
+      rendering_scale,
+      canvas_width,
+      canvas_height,
+      font_x_adjust,
+      font_y_adjust)
+    preview_image.paste(image, (0, glyph_height*(ascii_code - ord(' '))))
 
-def render_byte_list(bytes: Iterable[int], byte_columns: int, indent_spaces: int = 2) -> str:
-  output = " "*(indent_spaces-1)
-  
-  column = 0
-  for byte in bytes:
-    if column == byte_columns:
-      output += "\n" + " "*(indent_spaces-1)
-      column = 0
-    column += 1
-    output += f" {byte:#0{4}X},"
+    # Get output bytes
+    glyph_data = change_bit_depth(image.getdata(), bit_depth)
+    (glyph_bytes, glyph_byte_count) = join_to_bytes(glyph_data, bit_depth)
+    bitmap_bytes.extend(glyph_bytes)
+    bitmap_byte_count += glyph_byte_count
 
-  return output.replace('X', 'x')
-
-
-def bit_depth_to_layout(bit_depth: int) -> FT81xBitmapLayout:
-  if bit_depth == 4:
-    return FT81xBitmapLayout.L4
-  
-  raise ValueError('No matching bitmap layout')
+  return (preview_image, bitmap_bytes, bitmap_byte_count)
 
 
 # Settings
@@ -82,11 +84,12 @@ def run():
   image_crop_top = 1
   font_size = 17
   font_file = "font.otf"
+  image_file = None # "font.png" # Input image
   font_x_adjust = 0.25
   font_y_adjust = 4
   rendering_scale = 4
   preview_filename = 'out.png' # None
-  preview_only = True
+  preview_only = False
   bit_depth = 4
   indent_spaces = 2
   bitmap_byte_columns = 10
@@ -103,42 +106,27 @@ def run():
 
 
   # Build bitmap
-  bitmap_bytes = list()
-  bitmap_byte_count = 0
-
-  preview_image = None
-  if preview_filename:
-    glyph_count = ord('~') - ord(' ') + 1
-    preview_image = Image.new('L', size=(padded_image_width, glyph_height * glyph_count))
-
-  font = ImageFont.truetype(font_file, rendering_scale*font_size, encoding="unic")
-
-  for ascii_code in range(ord(' '), ord('~')+1):
-    glyph = chr(ascii_code)
-
-    # Render glyph
-    image = render_glyph(
-      glyph,
+  if font_file:
+    font = ImageFont.truetype(font_file, rendering_scale*font_size, encoding="unic")
+    (preview_image, bitmap_bytes, bitmap_byte_count) = render_bitmap(
       font,
       image_height,
       image_crop_top,
       padded_image_width,
+      bit_depth,
       rendering_scale,
       canvas_width,
       canvas_height,
+      glyph_height,
       font_x_adjust,
       font_y_adjust)
-    if preview_filename:
-      preview_image.paste(image, (0, glyph_height*(ascii_code - ord(' '))))
+  elif image_file:
+    preview_image = Image.open(image_file)
+    bitmap_data = change_bit_depth(preview_image.getdata(), bit_depth)
+    (bitmap_bytes, bitmap_byte_count) = join_to_bytes(bitmap_data, bit_depth)
+  else:
+    raise ValueError('Either font or image required.')
 
-    if preview_only:
-      continue
-
-    # Get output bytes
-    glyph_data = change_bit_depth(image.getdata(), bit_depth)
-    (glyph_bytes, glyph_byte_count) = join_to_bytes(glyph_data, bit_depth)
-    bitmap_bytes.extend(glyph_bytes)
-    bitmap_byte_count += glyph_byte_count
 
   if preview_filename:
     preview_image.save(preview_filename)
