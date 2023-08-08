@@ -33,7 +33,8 @@ def render_glyph(
 
 def render_bitmap(
     font: ImageFont.FreeTypeFont,
-    image_height: int,
+    ascii_codes: Iterable[int],
+    glyph_image_height: int,
     image_crop_top: int,
     padded_image_width: int,
     bit_depth: int,
@@ -46,18 +47,29 @@ def render_bitmap(
   bitmap_bytes = list()
   bitmap_byte_count = 0
 
-  preview_image = None
-  glyph_count = ord('~') - ord(' ') + 1
-  preview_image = Image.new('L', size=(padded_image_width, glyph_height * glyph_count))
+  ascii_to_render = set(ascii_codes)
+  first_char_code = min(ascii_to_render)
+  last_char_code = max(ascii_to_render)
+  image_height = (last_char_code - first_char_code + 1) * glyph_height
+  preview_image = Image.new('L', size=(padded_image_width, image_height))
 
-  for ascii_code in range(ord(' '), ord('~')+1):
+  pixels_per_glyph = padded_image_width * glyph_image_height
+  (empty_glyph_bytes, empty_glyph_byte_count) = join_to_bytes([0]*pixels_per_glyph, bit_depth)
+
+  for ascii_code in range(first_char_code, last_char_code+1):
+    if ascii_code not in ascii_to_render:
+      bitmap_bytes.extend(empty_glyph_bytes)
+      bitmap_byte_count += empty_glyph_byte_count
+      continue
+
     glyph = chr(ascii_code)
+    glyph_pos = ascii_code - first_char_code
 
     # Build glyph
     image = render_glyph(
       glyph,
       font,
-      image_height,
+      glyph_image_height,
       image_crop_top,
       padded_image_width,
       rendering_scale,
@@ -65,7 +77,7 @@ def render_bitmap(
       canvas_height,
       font_x_adjust,
       font_y_adjust)
-    preview_image.paste(image, (0, glyph_height*(ascii_code - ord(' '))))
+    preview_image.paste(image, (0, glyph_height*glyph_pos))
 
     # Get output bytes
     glyph_data = change_bit_depth(image.getdata(), bit_depth)
@@ -84,6 +96,7 @@ def run():
   image_crop_top = 1
   font_size = 17
   font_file = "font.otf"
+  glyphs_to_render = None # "012345689"
   image_file = None # "font.png" # Input image
   font_x_adjust = 0.25
   font_y_adjust = 4
@@ -102,6 +115,10 @@ def run():
   glyph_width = image_width
   glyph_height = image_height - image_crop_top
 
+  ascii_codes = list(range(ord(' '), 128))
+  if font_file and glyphs_to_render:
+    ascii_codes = list(map(ord, ''.join(sorted((dict.fromkeys(glyphs_to_render))))))
+
   # End of settings
 
 
@@ -110,6 +127,7 @@ def run():
     font = ImageFont.truetype(font_file, rendering_scale*font_size, encoding="unic")
     (preview_image, bitmap_bytes, bitmap_byte_count) = render_bitmap(
       font,
+      ascii_codes,
       image_height,
       image_crop_top,
       padded_image_width,
@@ -134,8 +152,10 @@ def run():
       exit()
 
   # Built font metrics
-  metrics_width_bytes = [0]*ord(' ')                             # Skipped characters
-  metrics_width_bytes.extend([image_width]*(ord('~')+1-ord(' ')+1))  # Rendered characters
+  metrics_width_bytes = list()
+  for ascii_code in range(0, 128):
+    char_width = image_width if ascii_code in ascii_codes else 0
+    metrics_width_bytes.append(char_width)
   bitmap_layout_id = bit_depth_to_l_layout(bit_depth)
   bitmap_linestride = padded_image_width * bit_depth // 8
 
